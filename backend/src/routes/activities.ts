@@ -1,34 +1,40 @@
-import { Router } from 'express';
+import { Router, Request, Response } from 'express';
 import { v4 as uuidv4 } from 'uuid';
-import { activities } from '../data/store';
+import { activities, Activity } from '../data/store';
 
 const router = Router();
 
-router.get('/', (_req, res) => res.json(activities));
-
-router.get('/:id', (req, res) => {
-  const item = activities.find((i: any) => i.id === req.params.id);
-  if (!item) return res.status(404).json({ error: 'Not found' });
-  return res.json(item);
+router.get('/', (_req: Request, res: Response) => {
+  res.json(activities);
 });
 
-router.post('/', (req, res) => {
-  const item = { ...req.body, id: uuidv4(), createdAt: new Date().toISOString().split('T')[0] };
-  activities.push(item as any);
-  res.status(201).json(item);
+router.get('/:id', (req: Request, res: Response) => {
+  const activity = activities.find(a => a.id === req.params.id);
+  if (!activity) return res.status(404).json({ error: 'Activity not found' });
+  return res.json(activity);
 });
 
-router.put('/:id', (req, res) => {
-  const index = activities.findIndex((i: any) => i.id === req.params.id);
-  if (index === -1) return res.status(404).json({ error: 'Not found' });
-  (activities as any)[index] = { ...(activities as any)[index], ...req.body };
-  return res.json((activities as any)[index]);
+router.post('/', (req: Request, res: Response) => {
+  const newActivity: Activity = {
+    ...req.body,
+    id: uuidv4(),
+    createdAt: new Date().toISOString().split('T')[0],
+  };
+  activities.push(newActivity);
+  res.status(201).json(newActivity);
 });
 
-router.delete('/:id', (req, res) => {
-  const index = activities.findIndex((i: any) => i.id === req.params.id);
-  if (index === -1) return res.status(404).json({ error: 'Not found' });
-  activities.splice(index, 1);
+router.put('/:id', (req: Request, res: Response) => {
+  const idx = activities.findIndex(a => a.id === req.params.id);
+  if (idx === -1) return res.status(404).json({ error: 'Activity not found' });
+  activities[idx] = { ...activities[idx], ...req.body, id: req.params.id };
+  return res.json(activities[idx]);
+});
+
+router.delete('/:id', (req: Request, res: Response) => {
+  const idx = activities.findIndex(a => a.id === req.params.id);
+  if (idx === -1) return res.status(404).json({ error: 'Activity not found' });
+  activities.splice(idx, 1);
   return res.status(204).send();
 });
 

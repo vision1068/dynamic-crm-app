@@ -9,7 +9,12 @@ import activitiesRouter from './routes/activities';
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-app.use(cors());
+app.use(cors({
+  origin: 'http://localhost:3000',
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+}));
+
 app.use(express.json());
 
 app.use('/api/contacts', contactsRouter);
@@ -18,10 +23,12 @@ app.use('/api/leads', leadsRouter);
 app.use('/api/opportunities', opportunitiesRouter);
 app.use('/api/activities', activitiesRouter);
 
-app.get('/api/health', (_req, res) => res.json({ status: 'ok' }));
+app.get('/api/health', (_req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
 
 app.listen(PORT, () => {
-  console.log(`CRM API server running on port ${PORT}`);
+  console.log(`CRM Backend running on http://localhost:${PORT}`);
 });
 
 export default app;
