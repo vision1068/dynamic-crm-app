@@ -7,14 +7,15 @@ export default {
   theme: {
     extend: {
       colors: {
-        'crm-blue': {
-          50: '#eff6ff',
-          100: '#dbeafe',
-          500: '#0078d4',
-          600: '#106ebe',
-          700: '#005a9e',
-          800: '#004578',
-          900: '#002c4e',
+        dynamics: {
+          blue: '#0078d4',
+          'blue-dark': '#005a9e',
+          'blue-light': '#deecf9',
+          'blue-hover': '#106ebe',
+          navy: '#243a5e',
+          gray: '#f3f2f1',
+          'gray-dark': '#605e5c',
+          'gray-border': '#edebe9',
         }
       }
     },

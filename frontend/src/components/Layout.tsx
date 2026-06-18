@@ -1,22 +1,13 @@
-import { ReactNode } from 'react'
-import Sidebar from './Sidebar'
-import { Page } from '../App'
+import { Outlet } from 'react-router-dom';
+import Sidebar from './Sidebar';
 
-interface LayoutProps {
-  children: ReactNode
-  currentPage: Page
-  onNavigate: (page: Page) => void
-}
-
-export default function Layout({ children, currentPage, onNavigate }: LayoutProps) {
+export default function Layout() {
   return (
-    <div className="flex h-screen bg-gray-100">
-      <Sidebar currentPage={currentPage} onNavigate={onNavigate} />
-      <main className="flex-1 overflow-auto">
-        <div className="p-6">
-          {children}
-        </div>
+    <div className="flex h-screen overflow-hidden bg-gray-100">
+      <Sidebar />
+      <main className="flex-1 overflow-y-auto">
+        <Outlet />
       </main>
     </div>
-  )
+  );
 }

@@ -5,23 +5,31 @@ export interface Contact {
   email: string;
   phone: string;
   company: string;
+  accountId?: string;
   jobTitle: string;
-  status: 'active' | 'inactive';
+  status: 'Active' | 'Inactive';
   createdAt: string;
+  lastActivity?: string;
+  address?: string;
+  city?: string;
+  country?: string;
 }
 
 export interface Account {
   id: string;
   name: string;
   industry: string;
-  revenue: number;
-  employees: number;
-  website: string;
+  website?: string;
   phone: string;
+  email: string;
+  address: string;
   city: string;
   country: string;
-  status: 'active' | 'inactive' | 'prospect';
+  revenue?: number;
+  employees?: number;
+  status: 'Active' | 'Inactive' | 'Prospect';
   createdAt: string;
+  owner: string;
 }
 
 export interface Lead {
@@ -29,12 +37,15 @@ export interface Lead {
   firstName: string;
   lastName: string;
   email: string;
-  company: string;
   phone: string;
-  source: string;
-  stage: 'new' | 'contacted' | 'qualified' | 'proposal' | 'closed';
-  value: number;
+  company: string;
+  jobTitle: string;
+  source: 'Web' | 'Phone' | 'Email' | 'Referral' | 'Social Media' | 'Trade Show';
+  stage: 'New' | 'Contacted' | 'Qualified' | 'Proposal' | 'Negotiation' | 'Closed Won' | 'Closed Lost';
+  estimatedValue?: number;
   createdAt: string;
+  owner: string;
+  notes?: string;
 }
 
 export interface Opportunity {
@@ -42,32 +53,41 @@ export interface Opportunity {
   name: string;
   accountId: string;
   accountName: string;
-  contactId: string;
-  contactName: string;
-  stage: 'prospecting' | 'qualification' | 'proposal' | 'negotiation' | 'closed-won' | 'closed-lost';
-  value: number;
+  contactId?: string;
+  contactName?: string;
+  stage: 'Prospecting' | 'Qualification' | 'Proposal' | 'Negotiation' | 'Closed Won' | 'Closed Lost';
   probability: number;
+  amount: number;
   closeDate: string;
+  owner: string;
+  description?: string;
   createdAt: string;
 }
+
+export type ActivityType = 'Call' | 'Email' | 'Meeting' | 'Task' | 'Note';
 
 export interface Activity {
   id: string;
-  type: 'call' | 'email' | 'meeting' | 'task';
+  type: ActivityType;
   subject: string;
-  description: string;
-  relatedTo: string;
-  relatedType: 'contact' | 'account' | 'lead' | 'opportunity';
-  status: 'open' | 'completed' | 'cancelled';
-  dueDate: string;
+  description?: string;
+  relatedTo?: string;
+  relatedType?: 'Contact' | 'Account' | 'Lead' | 'Opportunity';
+  relatedId?: string;
+  dueDate?: string;
+  completedAt?: string;
+  status: 'Planned' | 'Completed' | 'Cancelled';
+  owner: string;
   createdAt: string;
 }
 
-export interface DashboardStats {
-  totalContacts: number;
-  totalAccounts: number;
+export interface KPIStats {
   totalLeads: number;
   totalOpportunities: number;
-  pipelineValue: number;
+  totalContacts: number;
+  totalAccounts: number;
+  totalRevenue: number;
   wonDeals: number;
+  openDeals: number;
+  conversionRate: number;
 }
