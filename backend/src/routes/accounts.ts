@@ -1,41 +1,93 @@
 import { Router, Request, Response } from 'express';
-import { v4 as uuidv4 } from 'uuid';
-import { accounts, Account } from '../data/store';
+import { crmGet, crmPost, crmPatch, crmDelete } from '../crmClient';
 
 const router = Router();
 
-router.get('/', (_req: Request, res: Response) => {
-  res.json(accounts);
-});
+const SELECT = 'accountid,name,industrycode,websiteurl,telephone1,emailaddress1,address1_composite,address1_city,address1_country,revenue,numberofemployees,statuscode,createdon';
 
-router.get('/:id', (req: Request, res: Response) => {
-  const account = accounts.find(a => a.id === req.params.id);
-  if (!account) return res.status(404).json({ error: 'Account not found' });
-  return res.json(account);
-});
-
-router.post('/', (req: Request, res: Response) => {
-  const newAccount: Account = {
-    ...req.body,
-    id: uuidv4(),
-    createdAt: new Date().toISOString().split('T')[0],
+function mapAccount(a: Record<string, unknown>) {
+  return {
+    id: a['accountid'],
+    name: a['name'] ?? '',
+    industry: a['industrycode@OData.Community.Display.V1.FormattedValue'] ?? '',
+    website: a['websiteurl'] ?? '',
+    phone: a['telephone1'] ?? '',
+    email: a['emailaddress1'] ?? '',
+    address: a['address1_composite'] ?? '',
+    city: a['address1_city'] ?? '',
+    country: a['address1_country'] ?? '',
+    revenue: a['revenue'] ?? null,
+    employees: a['numberofemployees'] ?? null,
+    status: (a['statuscode@OData.Community.Display.V1.FormattedValue'] as string) === 'Active' ? 'Active' : 'Inactive',
+    createdAt: a['createdon'] ? String(a['createdon']).split('T')[0] : '',
   };
-  accounts.push(newAccount);
-  res.status(201).json(newAccount);
+}
+
+router.get('/', async (_req: Request, res: Response) => {
+  try {
+    const data = await crmGet<Record<string, unknown>[]>('accounts', {
+      $select: SELECT,
+      $orderby: 'createdon desc',
+      $top: '250',
+    });
+    res.json(data.map(mapAccount));
+  } catch (err: unknown) {
+    res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
+  }
 });
 
-router.put('/:id', (req: Request, res: Response) => {
-  const idx = accounts.findIndex(a => a.id === req.params.id);
-  if (idx === -1) return res.status(404).json({ error: 'Account not found' });
-  accounts[idx] = { ...accounts[idx], ...req.body, id: req.params.id };
-  return res.json(accounts[idx]);
+router.get('/:id', async (req: Request, res: Response) => {
+  try {
+    const data = await crmGet<Record<string, unknown>>(`accounts(${req.params.id})`, { $select: SELECT });
+    res.json(mapAccount(data));
+  } catch (err: unknown) {
+    res.status(404).json({ error: err instanceof Error ? err.message : String(err) });
+  }
 });
 
-router.delete('/:id', (req: Request, res: Response) => {
-  const idx = accounts.findIndex(a => a.id === req.params.id);
-  if (idx === -1) return res.status(404).json({ error: 'Account not found' });
-  accounts.splice(idx, 1);
-  return res.status(204).send();
+router.post('/', async (req: Request, res: Response) => {
+  try {
+    const result = await crmPost<Record<string, unknown>>('accounts', {
+      name: req.body.name,
+      websiteurl: req.body.website,
+      telephone1: req.body.phone,
+      emailaddress1: req.body.email,
+      address1_city: req.body.city,
+      address1_country: req.body.country,
+      numberofemployees: req.body.employees,
+      revenue: req.body.revenue,
+    });
+    res.status(201).json(result);
+  } catch (err: unknown) {
+    res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
+  }
+});
+
+router.put('/:id', async (req: Request, res: Response) => {
+  try {
+    await crmPatch(`accounts(${req.params.id})`, {
+      name: req.body.name,
+      websiteurl: req.body.website,
+      telephone1: req.body.phone,
+      emailaddress1: req.body.email,
+      address1_city: req.body.city,
+      address1_country: req.body.country,
+      numberofemployees: req.body.employees,
+      revenue: req.body.revenue,
+    });
+    res.json({ id: req.params.id, ...req.body });
+  } catch (err: unknown) {
+    res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
+  }
+});
+
+router.delete('/:id', async (req: Request, res: Response) => {
+  try {
+    await crmDelete(`accounts(${req.params.id})`);
+    res.status(204).send();
+  } catch (err: unknown) {
+    res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
+  }
 });
 
 export default router;

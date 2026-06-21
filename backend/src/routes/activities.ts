@@ -1,41 +1,85 @@
 import { Router, Request, Response } from 'express';
-import { v4 as uuidv4 } from 'uuid';
-import { activities, Activity } from '../data/store';
+import { crmGet, crmPost, crmPatch, crmDelete } from '../crmClient';
 
 const router = Router();
 
-router.get('/', (_req: Request, res: Response) => {
-  res.json(activities);
-});
+const SELECT = 'activityid,subject,description,activitytypecode,statecode,scheduledstart,scheduledend,createdon';
 
-router.get('/:id', (req: Request, res: Response) => {
-  const activity = activities.find(a => a.id === req.params.id);
-  if (!activity) return res.status(404).json({ error: 'Activity not found' });
-  return res.json(activity);
-});
-
-router.post('/', (req: Request, res: Response) => {
-  const newActivity: Activity = {
-    ...req.body,
-    id: uuidv4(),
-    createdAt: new Date().toISOString().split('T')[0],
+function mapActivity(a: Record<string, unknown>) {
+  return {
+    id: a['activityid'],
+    subject: a['subject'] ?? '',
+    description: a['description'] ?? '',
+    type: a['activitytypecode@OData.Community.Display.V1.FormattedValue'] ?? a['activitytypecode'] ?? '',
+    status: a['statecode@OData.Community.Display.V1.FormattedValue'] ?? '',
+    startDate: a['scheduledstart'] ? String(a['scheduledstart']).split('T')[0] : null,
+    endDate: a['scheduledend'] ? String(a['scheduledend']).split('T')[0] : null,
+    regardingId: a['_regardingobjectid_value'] ?? null,
+    regarding: a['_regardingobjectid_value@OData.Community.Display.V1.FormattedValue'] ?? '',
+    createdAt: a['createdon'] ? String(a['createdon']).split('T')[0] : '',
   };
-  activities.push(newActivity);
-  res.status(201).json(newActivity);
+}
+
+router.get('/', async (_req: Request, res: Response) => {
+  try {
+    const data = await crmGet<Record<string, unknown>[]>('activitypointers', {
+      $select: SELECT,
+      $orderby: 'createdon desc',
+      $top: '250',
+    });
+    res.json(data.map(mapActivity));
+  } catch (err: unknown) {
+    res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
+  }
 });
 
-router.put('/:id', (req: Request, res: Response) => {
-  const idx = activities.findIndex(a => a.id === req.params.id);
-  if (idx === -1) return res.status(404).json({ error: 'Activity not found' });
-  activities[idx] = { ...activities[idx], ...req.body, id: req.params.id };
-  return res.json(activities[idx]);
+router.get('/:id', async (req: Request, res: Response) => {
+  try {
+    const data = await crmGet<Record<string, unknown>>(`activitypointers(${req.params.id})`, { $select: SELECT });
+    res.json(mapActivity(data));
+  } catch (err: unknown) {
+    res.status(404).json({ error: err instanceof Error ? err.message : String(err) });
+  }
 });
 
-router.delete('/:id', (req: Request, res: Response) => {
-  const idx = activities.findIndex(a => a.id === req.params.id);
-  if (idx === -1) return res.status(404).json({ error: 'Activity not found' });
-  activities.splice(idx, 1);
-  return res.status(204).send();
+router.post('/', async (req: Request, res: Response) => {
+  try {
+    const entitySet = req.body.type === 'Phone Call' ? 'phonecalls'
+      : req.body.type === 'Email' ? 'emails'
+      : 'tasks';
+    const result = await crmPost<Record<string, unknown>>(entitySet, {
+      subject: req.body.subject,
+      description: req.body.description,
+      scheduledstart: req.body.startDate,
+      scheduledend: req.body.endDate,
+    });
+    res.status(201).json(result);
+  } catch (err: unknown) {
+    res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
+  }
+});
+
+router.put('/:id', async (req: Request, res: Response) => {
+  try {
+    await crmPatch(`tasks(${req.params.id})`, {
+      subject: req.body.subject,
+      description: req.body.description,
+      scheduledstart: req.body.startDate,
+      scheduledend: req.body.endDate,
+    });
+    res.json({ id: req.params.id, ...req.body });
+  } catch (err: unknown) {
+    res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
+  }
+});
+
+router.delete('/:id', async (req: Request, res: Response) => {
+  try {
+    await crmDelete(`activitypointers(${req.params.id})`);
+    res.status(204).send();
+  } catch (err: unknown) {
+    res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
+  }
 });
 
 export default router;

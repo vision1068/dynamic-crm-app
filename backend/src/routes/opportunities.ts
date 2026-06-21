@@ -1,41 +1,84 @@
 import { Router, Request, Response } from 'express';
-import { v4 as uuidv4 } from 'uuid';
-import { opportunities, Opportunity } from '../data/store';
+import { crmGet, crmPost, crmPatch, crmDelete } from '../crmClient';
 
 const router = Router();
 
-router.get('/', (_req: Request, res: Response) => {
-  res.json(opportunities);
-});
+const SELECT = 'opportunityid,name,estimatedvalue,closeprobability,stepname,salesstage,createdon,actualclosedate,statuscode';
 
-router.get('/:id', (req: Request, res: Response) => {
-  const opp = opportunities.find(o => o.id === req.params.id);
-  if (!opp) return res.status(404).json({ error: 'Opportunity not found' });
-  return res.json(opp);
-});
-
-router.post('/', (req: Request, res: Response) => {
-  const newOpp: Opportunity = {
-    ...req.body,
-    id: uuidv4(),
-    createdAt: new Date().toISOString().split('T')[0],
+function mapOpportunity(o: Record<string, unknown>) {
+  return {
+    id: o['opportunityid'],
+    name: o['name'] ?? '',
+    value: o['estimatedvalue'] ?? null,
+    probability: o['closeprobability'] ?? null,
+    stage: o['salesstage@OData.Community.Display.V1.FormattedValue'] ?? o['stepname'] ?? '',
+    status: o['statuscode@OData.Community.Display.V1.FormattedValue'] ?? '',
+    closeDate: o['actualclosedate'] ? String(o['actualclosedate']).split('T')[0] : null,
+    accountId: o['_parentaccountid_value'] ?? null,
+    account: o['_parentaccountid_value@OData.Community.Display.V1.FormattedValue'] ?? '',
+    createdAt: o['createdon'] ? String(o['createdon']).split('T')[0] : '',
   };
-  opportunities.push(newOpp);
-  res.status(201).json(newOpp);
+}
+
+router.get('/', async (_req: Request, res: Response) => {
+  try {
+    const data = await crmGet<Record<string, unknown>[]>('opportunities', {
+      $select: SELECT,
+      $orderby: 'createdon desc',
+      $top: '250',
+    });
+    res.json(data.map(mapOpportunity));
+  } catch (err: unknown) {
+    res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
+  }
 });
 
-router.put('/:id', (req: Request, res: Response) => {
-  const idx = opportunities.findIndex(o => o.id === req.params.id);
-  if (idx === -1) return res.status(404).json({ error: 'Opportunity not found' });
-  opportunities[idx] = { ...opportunities[idx], ...req.body, id: req.params.id };
-  return res.json(opportunities[idx]);
+router.get('/:id', async (req: Request, res: Response) => {
+  try {
+    const data = await crmGet<Record<string, unknown>>(`opportunities(${req.params.id})`, { $select: SELECT });
+    res.json(mapOpportunity(data));
+  } catch (err: unknown) {
+    res.status(404).json({ error: err instanceof Error ? err.message : String(err) });
+  }
 });
 
-router.delete('/:id', (req: Request, res: Response) => {
-  const idx = opportunities.findIndex(o => o.id === req.params.id);
-  if (idx === -1) return res.status(404).json({ error: 'Opportunity not found' });
-  opportunities.splice(idx, 1);
-  return res.status(204).send();
+router.post('/', async (req: Request, res: Response) => {
+  try {
+    const result = await crmPost<Record<string, unknown>>('opportunities', {
+      name: req.body.name,
+      estimatedvalue: req.body.value,
+      closeprobability: req.body.probability,
+      stepname: req.body.stage,
+      actualclosedate: req.body.closeDate,
+    });
+    res.status(201).json(result);
+  } catch (err: unknown) {
+    res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
+  }
+});
+
+router.put('/:id', async (req: Request, res: Response) => {
+  try {
+    await crmPatch(`opportunities(${req.params.id})`, {
+      name: req.body.name,
+      estimatedvalue: req.body.value,
+      closeprobability: req.body.probability,
+      stepname: req.body.stage,
+      actualclosedate: req.body.closeDate,
+    });
+    res.json({ id: req.params.id, ...req.body });
+  } catch (err: unknown) {
+    res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
+  }
+});
+
+router.delete('/:id', async (req: Request, res: Response) => {
+  try {
+    await crmDelete(`opportunities(${req.params.id})`);
+    res.status(204).send();
+  } catch (err: unknown) {
+    res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
+  }
 });
 
 export default router;

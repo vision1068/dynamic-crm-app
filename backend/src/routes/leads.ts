@@ -1,41 +1,90 @@
 import { Router, Request, Response } from 'express';
-import { v4 as uuidv4 } from 'uuid';
-import { leads, Lead } from '../data/store';
+import { crmGet, crmPost, crmPatch, crmDelete } from '../crmClient';
 
 const router = Router();
 
-router.get('/', (_req: Request, res: Response) => {
-  res.json(leads);
-});
+const SELECT = 'leadid,firstname,lastname,emailaddress1,telephone1,companyname,jobtitle,leadqualitycode,leadsourcecode,estimatedvalue,createdon,statuscode';
 
-router.get('/:id', (req: Request, res: Response) => {
-  const lead = leads.find(l => l.id === req.params.id);
-  if (!lead) return res.status(404).json({ error: 'Lead not found' });
-  return res.json(lead);
-});
-
-router.post('/', (req: Request, res: Response) => {
-  const newLead: Lead = {
-    ...req.body,
-    id: uuidv4(),
-    createdAt: new Date().toISOString().split('T')[0],
+function mapLead(l: Record<string, unknown>) {
+  return {
+    id: l['leadid'],
+    firstName: l['firstname'] ?? '',
+    lastName: l['lastname'] ?? '',
+    email: l['emailaddress1'] ?? '',
+    phone: l['telephone1'] ?? '',
+    company: l['companyname'] ?? '',
+    jobTitle: l['jobtitle'] ?? '',
+    source: l['leadsourcecode@OData.Community.Display.V1.FormattedValue'] ?? '',
+    quality: l['leadqualitycode@OData.Community.Display.V1.FormattedValue'] ?? '',
+    estimatedValue: l['estimatedvalue'] ?? null,
+    status: l['statuscode@OData.Community.Display.V1.FormattedValue'] ?? '',
+    createdAt: l['createdon'] ? String(l['createdon']).split('T')[0] : '',
   };
-  leads.push(newLead);
-  res.status(201).json(newLead);
+}
+
+router.get('/', async (_req: Request, res: Response) => {
+  try {
+    const data = await crmGet<Record<string, unknown>[]>('leads', {
+      $select: SELECT,
+      $orderby: 'createdon desc',
+      $top: '250',
+    });
+    res.json(data.map(mapLead));
+  } catch (err: unknown) {
+    res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
+  }
 });
 
-router.put('/:id', (req: Request, res: Response) => {
-  const idx = leads.findIndex(l => l.id === req.params.id);
-  if (idx === -1) return res.status(404).json({ error: 'Lead not found' });
-  leads[idx] = { ...leads[idx], ...req.body, id: req.params.id };
-  return res.json(leads[idx]);
+router.get('/:id', async (req: Request, res: Response) => {
+  try {
+    const data = await crmGet<Record<string, unknown>>(`leads(${req.params.id})`, { $select: SELECT });
+    res.json(mapLead(data));
+  } catch (err: unknown) {
+    res.status(404).json({ error: err instanceof Error ? err.message : String(err) });
+  }
 });
 
-router.delete('/:id', (req: Request, res: Response) => {
-  const idx = leads.findIndex(l => l.id === req.params.id);
-  if (idx === -1) return res.status(404).json({ error: 'Lead not found' });
-  leads.splice(idx, 1);
-  return res.status(204).send();
+router.post('/', async (req: Request, res: Response) => {
+  try {
+    const result = await crmPost<Record<string, unknown>>('leads', {
+      firstname: req.body.firstName,
+      lastname: req.body.lastName,
+      emailaddress1: req.body.email,
+      telephone1: req.body.phone,
+      companyname: req.body.company,
+      jobtitle: req.body.jobTitle,
+      estimatedvalue: req.body.estimatedValue,
+    });
+    res.status(201).json(result);
+  } catch (err: unknown) {
+    res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
+  }
+});
+
+router.put('/:id', async (req: Request, res: Response) => {
+  try {
+    await crmPatch(`leads(${req.params.id})`, {
+      firstname: req.body.firstName,
+      lastname: req.body.lastName,
+      emailaddress1: req.body.email,
+      telephone1: req.body.phone,
+      companyname: req.body.company,
+      jobtitle: req.body.jobTitle,
+      estimatedvalue: req.body.estimatedValue,
+    });
+    res.json({ id: req.params.id, ...req.body });
+  } catch (err: unknown) {
+    res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
+  }
+});
+
+router.delete('/:id', async (req: Request, res: Response) => {
+  try {
+    await crmDelete(`leads(${req.params.id})`);
+    res.status(204).send();
+  } catch (err: unknown) {
+    res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
+  }
 });
 
 export default router;
