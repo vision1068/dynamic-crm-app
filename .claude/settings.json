@@ -3,6 +3,16 @@
     "crm": {
       "type": "http",
       "url": "http://mcdynccatdev01:9999"
+    },
+    "mcp-server-chart": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@antv/mcp-server-chart"]
+    },
+    "puppeteer": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "puppeteer-mcp-server"]
     }
   }
 }
